@@ -113,7 +113,10 @@ RUN chmod 755 /opt/bpipe/bin/*
 RUN find /opt/bpipe/bin -type f -exec ln -s '{}' /usr/local/bin/ \;
 
 # install R dependencies (required by JAFFA)
-RUN Rscript -e 'source("http://bioconductor.org/biocLite.R")' -e 'biocLite("IRanges")'
+COPY requirements-bioc.R .
+RUN Rscript -e 'requireNamespace("BiocManager"); BiocManager::install(ask=F);' \
+&& Rscript requirements-bioc.R \
+&& rm -rf /tmp/downloaded_packages
 
 # install jaffa
 RUN git clone https://github.com/Oshlack/JAFFA.git -b master
