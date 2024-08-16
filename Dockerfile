@@ -17,6 +17,7 @@ RUN apt-get update -y \
         libpng-dev \
         libtool \
         lmod \
+        locales \
         make \
         openjdk-8-jdk \
         python \
@@ -29,6 +30,15 @@ RUN apt-get update -y \
         zlib1g-dev \
     && rm -rf /tmp/downloaded_packages/ /tmp/*.rds \
     && rm -rf /var/lib/apt/lists/*
+
+# Set the locale to get rid of warning
+# from https://stackoverflow.com/questions/28405902/how-to-set-the-locale-inside-a-debian-ubuntu-docker-container
+RUN touch /usr/share/locale/locale.alias
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen
+ENV LANG en_US.UTF-8  
+ENV LANGUAGE en_US:en  
+ENV LC_ALL en_US.UTF-8 
 
 VOLUME /data/batch
 
@@ -101,16 +111,21 @@ RUN rmdir ${HOME}/bin
 RUN rm -rf blatSrc
 
 # install bpipe
-RUN git clone https://github.com/ssadedin/bpipe.git
+#RUN git clone https://github.com/ssadedin/bpipe.git
 # gradle properties holds http.proxyHost and http.proxyPort
 # COPY gradle.properties bpipe/gradle.properties
 # RUN bpipe/gradlew -p bpipe dist
-RUN cd bpipe; ./gradlew dist
-RUN mv bpipe/build/stage/bpipe* .
-RUN rm -rf bpipe
-RUN mv bpipe* bpipe
-RUN chmod 755 /opt/bpipe/bin/*
-RUN find /opt/bpipe/bin -type f -exec ln -s '{}' /usr/local/bin/ \;
+#RUN cd bpipe; ./gradlew dist
+#RUN mv bpipe/build/stage/bpipe* .
+#RUN rm -rf bpipe
+#RUN mv bpipe* bpipe
+#RUN chmod 755 /opt/bpipe/bin/*
+#RUN find /opt/bpipe/bin -type f -exec ln -s '{}' /usr/local/bin/ \;
+
+# install older version
+RUN wget -O bpipe-0.9.9.2.tar.gz https://github.com/ssadedin/bpipe/releases/download/0.9.9.2/bpipe-0.9.9.2.tar.gz
+RUN tar -zxvf bpipe-0.9.9.2.tar.gz ; rm bpipe-0.9.9.2.tar.gz
+RUN ln -s $PWD/bpipe-0.9.9.2/bin/* /usr/local/bin/
 
 # install R dependencies (required by JAFFA)
 RUN Rscript -e "install.packages('BiocManager')" \
@@ -128,6 +143,8 @@ RUN g++ -std=c++11 -O3 -o JAFFA/tools/bin/process_transcriptome_align_table JAFF
 RUN g++ -O3 -o JAFFA/tools/bin/extract_seq_from_fasta JAFFA/src/extract_seq_from_fasta.c++
 RUN g++ -std=c++11 -O3 -o JAFFA/tools/bin/make_simple_read_table JAFFA/src/make_simple_read_table.c++
 #RUN g++ -std=c++11 -O3 -o JAFFA/bin/bypass_genomic_alignment JAFFA/src/bypass_genomic_alignment.c++
+# compile make_3_gene_fusion_table - not included earlier; as in install_linux64.sh
+RUN g++ -std=c++11 -O3 -o JAFFA/tools/bin/make_3_gene_fusion_table JAFFA/src/make_3_gene_fusion_table.c++
 ENV PATH ${PATH}:/opt/JAFFA/tools/bin
 
 # set the tools
@@ -136,6 +153,12 @@ RUN chmod 644 JAFFA/tools.groovy
 
 COPY convert_jaffa_to_bedpe.py /usr/local/bin/convert_jaffa_to_bedpe.py
 RUN chmod 755 /usr/local/bin/convert_jaffa_to_bedpe.py
+
+#update PATH
+ENV PATH="${PATH}:/opt/bbmap/current:/opt/bbmap:/opt/JAFFA/tools/bbmap"
+
+#cp bbmap to /opt/JAFFA/tools
+RUN cp -r /opt/bbmap /opt/JAFFA/tools/bbmap
 
 WORKDIR /data/batch
 
