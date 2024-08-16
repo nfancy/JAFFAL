@@ -113,8 +113,7 @@ RUN chmod 755 /opt/bpipe/bin/*
 RUN find /opt/bpipe/bin -type f -exec ln -s '{}' /usr/local/bin/ \;
 
 # install R dependencies (required by JAFFA)
-RUN install2.r -e \
-BiocManager \
+RUN Rscript -e "install.packages('BiocManager')" \
 && rm -rf /tmp/downloaded_packages
 
 COPY requirements-bioc.R .
